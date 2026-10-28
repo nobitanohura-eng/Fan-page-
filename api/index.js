@@ -1,12 +1,17 @@
 
 
-  /**
+ /**
  * Vercel Serverless Function: Smart Social Link Cloaker & VIP Vault Pre-Lander
  * File Path: api/index.js
  * Zero external runtime dependencies — uses Tailwind CSS via CDN.
+ * Authentic Desi VIP Model Assets hosted on high-speed CDN.
  */
 
 const ADSTERRA_DIRECT_LINK = "https://www.profitableratecpmnetwork.com/q57rx5uii?key=71c304f4b20e2231d1d551e412b40da5";
+
+// Authentic Desi VIP model assets uploaded by user (high-speed ImgBB CDN)
+const DEFAULT_AVATAR = "https://i.ibb.co/DHTmNvdT/media-1793206955998-ba56aac0.jpg";
+const DEFAULT_BANNER = "https://i.ibb.co/BH7qych6/media-1793206956474-d4ed18e8.webp";
 
 const BOT_SIGNATURES = [
   "twitterbot",
@@ -15,20 +20,6 @@ const BOT_SIGNATURES = [
   "discordbot",
   "whatsapp"
 ];
-
-// Embedded Desi VIP model assets (avatar & banner) for standalone deployment on Vercel
-let avatarBuffer = null;
-let bannerBuffer = null;
-
-function getAvatarBuffer() {
-  if (!avatarBuffer) avatarBuffer = Buffer.from(AVATAR_BASE64, "base64");
-  return avatarBuffer;
-}
-
-function getBannerBuffer() {
-  if (!bannerBuffer) bannerBuffer = Buffer.from(BANNER_BASE64, "base64");
-  return bannerBuffer;
-}
 
 function escapeHtml(value = "") {
   return String(value)
@@ -39,12 +30,12 @@ function escapeHtml(value = "") {
     .replace(/'/g, "&#39;");
 }
 
-function sanitizeImageUrl(rawImg, defaultUrl = "") {
+function sanitizeImageUrl(rawImg, defaultUrl = DEFAULT_BANNER) {
   if (!rawImg || typeof rawImg !== "string") return defaultUrl;
   let trimmed = rawImg.trim();
   if (!trimmed) return defaultUrl;
 
-  // Auto-convert Google Drive sharing/view links to direct lh3 CDN links
+  // Auto-convert Google Drive sharing/view links to direct lh3 links
   const gdriveMatch = trimmed.match(/\/d\/([a-zA-Z0-9_-]+)/);
   if (gdriveMatch && gdriveMatch[1]) {
     return "https://lh3.googleusercontent.com/d/" + gdriveMatch[1];
@@ -65,7 +56,7 @@ export function isSocialCrawlerBot(userAgent = "") {
   return BOT_SIGNATURES.some((bot) => normalized.includes(bot));
 }
 
-export function renderBotCloakHtml({ imageUrl, pageUrl, creatorName = "Priya Sharma" }) {
+export function renderBotCloakHtml({ imageUrl = DEFAULT_BANNER, pageUrl = "", creatorName = "Priya Sharma" }) {
   const safeImg = escapeHtml(imageUrl);
   const safeUrl = escapeHtml(pageUrl);
   const title = escapeHtml(creatorName + " • Official VIP 18+ Private Vault");
@@ -104,19 +95,18 @@ export function renderBotCloakHtml({ imageUrl, pageUrl, creatorName = "Priya Sha
 }
 
 export function renderHumanPrelanderHtml({
-  imageUrl,
-  bannerUrl = "",
-  videoPreviewUrl = "",
+  imageUrl = DEFAULT_AVATAR,
+  bannerUrl = DEFAULT_BANNER,
+  videoPreviewUrl = DEFAULT_BANNER,
   vaultThumbs = [],
   directLink = ADSTERRA_DIRECT_LINK,
   creatorName = "Priya Sharma",
   creatorHandle = "@priyasharma.vip",
-  interceptPreview = false,
-  baseApiUrl = "/api"
+  interceptPreview = false
 }) {
-  const safeAvatar = escapeHtml(imageUrl || (baseApiUrl + "?asset=avatar"));
-  const safeBanner = escapeHtml(bannerUrl || (baseApiUrl + "?asset=banner"));
-  const safeVideoPreview = escapeHtml(videoPreviewUrl || bannerUrl || (baseApiUrl + "?asset=banner"));
+  const safeAvatar = escapeHtml(imageUrl || DEFAULT_AVATAR);
+  const safeBanner = escapeHtml(bannerUrl || DEFAULT_BANNER);
+  const safeVideoPreview = escapeHtml(videoPreviewUrl || bannerUrl || DEFAULT_BANNER);
   const safeDirectLink = escapeHtml(directLink);
   const safeCreatorName = escapeHtml(creatorName);
   const safeHandle = escapeHtml(creatorHandle);
@@ -173,6 +163,8 @@ export function renderHumanPrelanderHtml({
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>${safeCreatorName} • VIP 18+ Private Vault</title>
   <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- PASTE YOUR ADSTERRA POPUNDER / SOCIAL BAR SCRIPTS DIRECTLY BELOW HERE -->
 
   <style>
     @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Outfit:wght@600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
@@ -442,18 +434,6 @@ export function renderHumanPrelanderHtml({
 export default function handler(req, res) {
   const query = req.query || {};
 
-  // 1. High-Performance Image Server for Standalone Vercel Deployments
-  if (query.asset === "avatar") {
-    res.setHeader("Content-Type", "image/jpeg");
-    res.setHeader("Cache-Control", "public, max-age=86400, s-maxage=86400");
-    return res.status(200).send(getAvatarBuffer());
-  }
-  if (query.asset === "banner" || query.asset === "preview") {
-    res.setHeader("Content-Type", "image/webp");
-    res.setHeader("Cache-Control", "public, max-age=86400, s-maxage=86400");
-    return res.status(200).send(getBannerBuffer());
-  }
-
   const userAgent =
     (req.headers && (req.headers["user-agent"] || req.headers["User-Agent"])) || "";
 
@@ -461,16 +441,11 @@ export default function handler(req, res) {
     (req.headers && req.headers["x-forwarded-proto"]) || "https";
   const host =
     (req.headers && req.headers.host) || "fan-page-orpin-mu.vercel.app";
-  const pageOrigin = protocol + "://" + host;
-  const baseApiUrl = pageOrigin + "/api";
-
-  const defaultAvatar = baseApiUrl + "?asset=avatar";
-  const defaultBanner = baseApiUrl + "?asset=banner";
 
   // Dynamic image parameter (?img=...) with safe Google Drive auto-converter
-  const imageUrl = sanitizeImageUrl(query.img, defaultAvatar);
-  const bannerUrl = sanitizeImageUrl(query.banner, defaultBanner);
-  const videoPreviewUrl = sanitizeImageUrl(query.preview, defaultBanner);
+  const imageUrl = sanitizeImageUrl(query.img, DEFAULT_AVATAR);
+  const bannerUrl = sanitizeImageUrl(query.banner, DEFAULT_BANNER);
+  const videoPreviewUrl = sanitizeImageUrl(query.preview, DEFAULT_BANNER);
   const directLink =
     typeof query.link === "string" && query.link.trim()
       ? query.link.trim()
@@ -494,7 +469,7 @@ export default function handler(req, res) {
 
   if (isSocialCrawlerBot(effectiveUa)) {
     const botHtml = renderBotCloakHtml({
-      imageUrl: bannerUrl || imageUrl,
+      imageUrl: query.banner ? sanitizeImageUrl(query.banner) : (query.img ? sanitizeImageUrl(query.img) : DEFAULT_BANNER),
       pageUrl,
       creatorName
     });
@@ -503,8 +478,8 @@ export default function handler(req, res) {
 
   const vaultThumbs =
     typeof query.thumbs === "string" && query.thumbs.trim()
-      ? query.thumbs.split(",").map((u, i) => sanitizeImageUrl(u, i % 2 === 0 ? defaultBanner : defaultAvatar))
-      : [defaultBanner, defaultAvatar, defaultBanner, defaultAvatar, defaultBanner, defaultAvatar];
+      ? query.thumbs.split(",").map((u, i) => sanitizeImageUrl(u, i % 2 === 0 ? DEFAULT_BANNER : DEFAULT_AVATAR))
+      : [DEFAULT_BANNER, DEFAULT_AVATAR, DEFAULT_BANNER, DEFAULT_AVATAR, DEFAULT_BANNER, DEFAULT_AVATAR];
 
   const humanHtml = renderHumanPrelanderHtml({
     imageUrl,
@@ -513,8 +488,7 @@ export default function handler(req, res) {
     vaultThumbs,
     directLink,
     creatorName,
-    interceptPreview,
-    baseApiUrl
+    interceptPreview
   });
 
   return res.status(200).send(humanHtml);

